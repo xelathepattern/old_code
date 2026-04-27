@@ -1,0 +1,194 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Mar 12 19:38:49 2021
+
+@author: Xela 
+"""
+
+
+from decimal import Decimal, getcontext
+getcontext().prec = 10
+
+from numpy import arange
+
+from itertools import product
+
+import matplotlib
+import matplotlib.pyplot as plt
+
+
+from math import sin, cos, tan, e, pi
+
+
+#note: xyRange has step, bounds doesn't
+
+def slopeField(f, xyRange):
+   for i in range(len(xyRange)):
+      for j in range(len(xyRange[i])):
+         xyRange[i][j] = Decimal(str(xyRange[i][j]))
+
+   points = product(arange(*xyRange[0]), arange(*xyRange[1]))
+
+   pointSlopes = []
+   for point in points:
+      pointSlopes.append( (point, Decimal(str( f(*point) )) ) )
+
+
+   return pointSlopes
+
+
+def plotSlope(point, slope, lineLength, ax):
+   point = list(point)
+
+   point[0] = Decimal(str(point[0]))
+   point[1] = Decimal(str(point[1]))
+
+
+   slope = Decimal(str(slope))
+
+   lineLength = Decimal(str(lineLength))
+
+   step = lineLength/Decimal(2)
+
+
+   lowX = point[0] - step
+   lowY = point[1] - (slope * step)
+
+   highX = point[0] + step
+   highY = point[1] + (slope * step)
+
+
+   ax.plot([lowX, highX], [lowY, highY], color='black')
+
+
+   return
+
+
+def plotPointSlopes(pointSlopes, lineLength, ax):
+   for pointSlope in pointSlopes:
+      plotSlope(pointSlope[0], pointSlope[1], lineLength, ax)
+
+
+   return
+
+
+def plotSlopeField(f, xyRange, lineLength, fig=None, ax=None):
+   if fig == None:
+      fig, ax = plt.subplots()
+
+   fig, ax = plt.subplots()
+
+   #make the x and y axis pop up
+   ax.axhline(y=0, color='k')
+   ax.axvline(x=0, color='k')
+
+   pointSlopes = slopeField(f, xyRange)
+
+   plotPointSlopes(pointSlopes, lineLength, ax)
+
+
+   return fig, ax
+
+
+
+
+def euler(f, point, bounds, step):
+   point = list(point)
+
+   point[0] = Decimal(str(point[0]))
+   point[1] = Decimal(str(point[1]))
+
+   for i in range(len(bounds)):
+      for j in range(len(bounds[i])):
+         bounds[i][j] = Decimal(str(bounds[i][j]))
+
+   step = Decimal(str(step))
+
+
+   xVals = []
+   yVals = []
+   while (bounds[0][0] < point[0] < bounds[0][1]) and (bounds[1][0] < point[1] < bounds[1][1]):
+      xVals.append(point[0])
+      yVals.append(point[1])
+
+      point[0] += step
+      point[1] += Decimal(str(f(*point))) * step
+
+
+   return xVals, yVals
+
+
+def eulerPlot(f, point, bounds, step, fig=None, ax=None):
+   step = Decimal(str(step))
+
+   forward = euler(f, point, bounds, step)
+   backward = euler(f, point, bounds, Decimal(-1) * step)
+   #forward marched forward, backward marched backward, we want to turn this into one straight march so that the plt lines don't go crazy
+   #to do that, we reverse backward so it marches from left to middle, then add forward (which marches from middle to right), and now we have left to right.
+   backward[0].reverse()
+   backward[1].reverse()
+
+   xVals, yVals = (backward[0] + forward[0]), (backward[1] + forward[1])
+
+
+   #plot stuff
+   if fig == None:
+      fig, ax = plt.subplots()
+
+   ax.axis(bounds[0] + bounds[1]) #set the window
+
+   #make the x and y axis pop up
+   ax.axhline(y=0, color='k')
+   ax.axvline(x=0, color='k')
+
+
+   ax.plot(xVals, yVals)
+
+
+   return fig, ax
+
+
+
+def stackEuler(f, xyRange, lineLength, pointList, step, fig=None, ax=None):
+   if fig == None:
+      fig, ax = plt.subplots()
+
+   bounds = []
+
+   bounds.append(xyRange[0][0:2])
+   bounds.append(xyRange[1][0:2])
+
+   fig, ax = plotSlopeField(f, xyRange, lineLength, fig, ax)
+
+   eulerPlotPoint = lambda point, fig, ax: eulerPlot(f, point, bounds, step, fig, ax)
+
+   for point in pointList:
+      fig, ax = eulerPlotPoint(point, fig, ax)
+
+
+   return fig, ax
+
+
+def stackEulerRange(f, xyRange, lineLength, stackRange, step, fig=None, ax=None):
+   if fig == None:
+      fig, ax = plt.subplots()
+
+
+   pointList = product([0], arange(*stackRange))
+
+   stackEuler(f, xyRange, lineLength, pointList, step, fig, ax)
+
+   return fig, ax
+
+
+
+
+def f(x, y): #this is the derivative of f
+   return y
+
+matplotlib.use("Qt5Agg")
+
+%matplotlib qt
+
+fig0, ax = stackEulerRange(f, [ [-2, 2, .1], [-2, 2, .1] ], .07, [-2, 2, .1], .01)
+fig1, ax2 = plotSlopeField(f, [ [-2, 2, .1], [-2, 2, .1] ], .07)
